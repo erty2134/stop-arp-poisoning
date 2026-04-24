@@ -1,3 +1,8 @@
+"""
+Module includes 2 seperate Classes:\n
+- Display for cli printing and inputing\n
+- CommandSerialization for creating commands\n
+"""
 import sys
 
 class Display:
@@ -9,6 +14,7 @@ class Display:
         self.flush:bool=True
     
     def print(self,*args):
+        """prints prefix, preprint, *args (in this order)"""
         listArgs=list(args);
         sys.stdout.write(self.prefix);
         sys.stdout.write(self.prePrint);
@@ -20,6 +26,7 @@ class Display:
         if (self.flush): sys.stdout.flush();#       The input method creates its own new line when the user 
                                             #       clicks enter. 
     def input(self,*args)->str:
+        """writes prefix, prininput, *args (in this order)"""
         sys.stdout.write(self.prefix);  # writes the prefix
         sys.stdout.write(self.preInput);# writes preinput 
         listArgs=list(args);
@@ -67,6 +74,11 @@ class CommandSerialization:
         self._commands: list = []
 
     def create_command(self, command_name):
+        """
+        function needs 3 args (statement, command, value)\n
+        pass name of command into create_command
+        
+        """
         def wrapper(fn):
             self._commands.append(command_name)
             self._functions.append(fn)
@@ -90,18 +102,18 @@ class CommandSerialization:
 def main() -> None:
     inputComands = CommandSerialization()
 
-    @inputComands.create_command("targetip")
-    def targetip(statement, command, value) -> None:
+    @inputComands.create_command("test1")
+    def test1(statement, command, value):
         if statement == "set":
-            inputComands.global_data["targetip"] = value
-            print(f"set ip '{inputComands.global_data["targetip"]}'")
+            inputComands.global_data["test1"] = value
+            print(f"set test1 '{inputComands.global_data["test1"]}'")
         elif statement == "get":
-            print("get ip")
+            print("get test1")
 
-    @inputComands.create_command("targetmac")
-    def targetmac(statement, command, value) -> None:
+    @inputComands.create_command("test2")
+    def test2(statement, command, value):
         if statement == "set":
-            print("set mac")
+            print("set test2")
 
     while True:
         print(inputComands.update(input_ = input("in: ")))

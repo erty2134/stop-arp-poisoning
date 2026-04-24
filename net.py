@@ -1,3 +1,11 @@
+"""
+Scapy based module contains 4 functions and one Class\n
+- get_ip\n
+- send_arp_request\n
+- get_arp_cache\n
+- get_unasigned_mac\n
+- ArpLoop (this is the class)\n
+"""
 from scapy.all import *
 import threading
 import time
@@ -5,6 +13,10 @@ import random
 import subprocess
 import re
 conf.verb = 0
+
+def get_ip()->str:
+    """returns ip as string, uses scapy"""
+    return scapy.get_if_addr(scapy.conf.iface)
 
 def send_arp_request(
         target_mac=None, 
@@ -30,7 +42,7 @@ def _random_mac()->str:
         digit = random.randint(0,225)
         digit = hex(digit)
         mac = f"{mac}{digit[2:]}:" # get rid of 0x at start of digit
-    mac = mac[:-1] # minus the final colon
+    mac = mac[:-1] # remove the final colon
     return mac
 
 def get_arp_cache():
@@ -43,7 +55,7 @@ def get_arp_cache():
     return ips, macs
 
 def _broadcast_ping():
-    """gets arp cache and searchs for ff:ff:ff:ff:ff:ff \n 
+    """internal, gets arp cache and searchs for ff:ff:ff:ff:ff:ff \n 
     then pings the related ip
     """
     ips, macs = get_arp_cache()
@@ -54,7 +66,7 @@ def _broadcast_ping():
     #subprocess.run(["ping", "-c", "1", broadcast_ip])
     return sr1(IP(dst=broadcast_ip)/ICMP()) # pyright: ignore[reportUndefinedVariable]
 
-def _get_unasigned_mac():
+def get_unasigned_mac():
     """returns mac addr that is not in the given list"""
     _broadcast_ping() # fill arp cache first
     mac_list: list[str] = get_arp_cache()[1]
@@ -66,6 +78,11 @@ def _get_unasigned_mac():
     return mac
     
 class ArpLoop(threading.Thread):
+    """Creates an object that constantly sends arp packets\n
+    - run() to start the loop
+    - and stop() to stop the loop
+    - arp packets are sent every interval \n
+    """
     def __init__(self, deviceIp: str, deviceMac: str, sendToIp: str, sendToMac: str, interval: float = 0.5)->None:
         super().__init__(daemon=True)
         self._exit = threading.Event()
