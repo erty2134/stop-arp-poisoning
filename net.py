@@ -16,7 +16,7 @@ conf.verb = 0
 
 def get_ip()->str:
     """returns ip as string, uses scapy"""
-    return scapy.get_if_addr(scapy.conf.iface)
+    return get_if_addr(conf.iface)
 
 def send_arp_request(
         target_mac=None, 

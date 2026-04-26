@@ -65,7 +65,9 @@ class CommandSerialization:
         """
         statement = input_.split()[0]
         command = input_.split()[1]
-        value = input_.split(maxsplit=3)[2]
+        value = None
+        try: value = input_.split(maxsplit=3)[2]
+        except: pass
         return statement, command, value
 
     def __init__(self):
