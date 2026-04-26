@@ -55,7 +55,8 @@ def get_arp_cache():
     return ips, macs
 
 def _broadcast_ping():
-    """internal, gets arp cache and searchs for ff:ff:ff:ff:ff:ff \n 
+    """
+    internal, gets arp cache and searchs for ff:ff:ff:ff:ff:ff \n 
     then pings the related ip
     """
     ips, macs = get_arp_cache()
