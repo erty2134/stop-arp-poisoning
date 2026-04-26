@@ -44,8 +44,10 @@ class Display:
 class CommandSerialization:
     """
     ## Command Serialization
-    #### create commands in there own scope and function
-    - @create_command(command_name)
+    #### create commands in functions
+    - @create_command(command_name), creates a three (but allows two) part command. 
+    it has a statement(statement_name), command, value structure eg: set targetfile words.txt
+    - @create_statement is a single word command eg: help, run, exit
     - self.global_data: list, use this for object scope data
     - update(input), run this whenever you want to use any command
     
@@ -54,8 +56,10 @@ class CommandSerialization:
     commands in their own functions. This is \n
     because when i was creating a previous project \n
     i fell into an error where varible names between \n
-    commands would get mixed up. so giving each \n
-    command their own function means that they have \n
+    commands would get mixed up because i used if statement\n
+    chains to create commands meaning all varibles were\n
+    in the main scope. so giving each command \n
+    their own function means that they have \n
     there own scope.
     """
     @staticmethod
@@ -72,8 +76,10 @@ class CommandSerialization:
 
     def __init__(self):
         self.global_data: dict[str] = {}
-        self._functions: list = []
-        self._commands: list = []
+        self._commands: list = [] # holds the names of the commands
+        self._command_functions: list = [] # holds the callable function of the commands
+        self._statements: list = [] # holds the names of the statements
+        self._statement_functions: list = [] # holds the callable function of the statements
 
     def create_command(self, command_name):
         """
@@ -83,19 +89,39 @@ class CommandSerialization:
         """
         def wrapper(fn):
             self._commands.append(command_name)
-            self._functions.append(fn)
+            self._command_functions.append(fn)
         return wrapper
     
-    def update(self, input_) -> str:
+    def create_statement(self, statement_name):
+        """
+        Create a statement (a command without arguments)\n 
+        eg: help, exit, start.
+        
+        """
+        def wrapper(fn):
+            self._statements.append(statement_name)
+            self._statement_functions.append(fn)
+        return wrapper
+    
+    def update(self, input_) -> str | None:
         """checks for first instance of command and runs it.\n
         returns the error message"""
-        try: CommandSerialization._parse_input(input_)
-        except: return "Error: Not enough inputs, requires: statement command value"
+        # check for statements
+        for i,v in enumerate(self._statements):
+            if v == input_[:-1]: # :-1 removes the \n
+                self._statement_functions[i]()
+                return;
 
+        try:
+            CommandSerialization._parse_input(input_)
+        except: 
+            return "Statement not found"
+        
+        # check for commands
         for i,v in enumerate(self._commands):
             if v == CommandSerialization._parse_input(input_)[1]:
                 statement, command, value = CommandSerialization._parse_input(input_)
-                self._functions[i](statement, command, value)
+                self._command_functions[i](statement, command, value)
                 return;
     
         return f"Error: command not found '{CommandSerialization._parse_input(input_)[1]}'"

@@ -43,7 +43,28 @@ def main(argc: int, argv: list[str]) -> None:
             command.global_data["clientsip"].remove(value)
         if statement == "get":
             display.print(f"clientips: '{command.global_data["clientsip"]}'")
-    
+
+    @commands.create_statement("start")
+    def start_command():
+        #send broadcast ping to get a big arp cache
+
+        # create an arploop
+        #   sends from: new and random un-used mac, every ip on the subnet
+        #   send to: targetmac, targetip
+
+        # for every ip in arp cache that's under the same subnet # same subnet cuz ar poisening can only happen on the same subnet
+        # create another arploop
+        #   sends from: router_mac, true_router_ip
+        #   sends to: iterations mac, iterations ip
+        ...
+
+    @commands.create_statement("help")
+    def help_statement():
+        display.print("Help...")
+    @commands.create_statement("exit")
+    def exit_statement():
+        display.print("exiting...")
+        sys.exit()
 
     display.print("Send Arp Packets, Welcome")
     while True:
