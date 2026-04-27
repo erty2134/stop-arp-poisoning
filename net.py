@@ -54,7 +54,7 @@ def get_arp_cache():
     macs = mac_pattern.findall(arp_cache)
     return ips, macs
 
-def _broadcast_ping():
+def broadcast_ping():
     """
     internal, gets arp cache and searchs for ff:ff:ff:ff:ff:ff \n 
     then pings the related ip
@@ -64,12 +64,12 @@ def _broadcast_ping():
     for i,v in enumerate(macs):
         if v == "ff:ff:ff:ff:ff:ff":
             broadcast_ip = ips[i]
-    #subprocess.run(["ping", "-c", "1", broadcast_ip])
-    return sr1(IP(dst=broadcast_ip)/ICMP()) # pyright: ignore[reportUndefinedVariable]
+    subprocess.run(["ping", "-c", "1", broadcast_ip], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    #return sr1(IP(dst=broadcast_ip)/ICMP()) # pyright: ignore[reportUndefinedVariable]
 
 def get_unasigned_mac():
     """returns mac addr that is not in the given list"""
-    _broadcast_ping() # fill arp cache first
+    broadcast_ping() # fill arp cache first
     mac_list: list[str] = get_arp_cache()[1]
     mac = None
     while mac == None:
@@ -98,3 +98,5 @@ class ArpLoop(threading.Thread):
             time.sleep(self._interval)
     def stop(self):
         self._exit.set()
+    def foo(self):
+        return ("bar")
