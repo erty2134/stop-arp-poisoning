@@ -2,6 +2,7 @@
 - requires sudo
 - set targetip [attacker ip] # normally routers ip during mitm
 - set targetmac [attacker hardware address]
+- add clientsip
 - start threads
 - stop
 
