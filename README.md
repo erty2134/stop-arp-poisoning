@@ -3,4 +3,4 @@ scapy-based tool that removes arp poisoning by arp poisoning the arp poisonener 
 
 doesnt work on fullduplex or internal yet (bettercap)
 
-⚠️ Warning, still under development and does not work yet 
+⚠️ Warning, its prolly a little bit buggy cuz i rushed releasing it
