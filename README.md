@@ -3,4 +3,4 @@ scapy-based tool that removes arp poisoning by arp poisoning the arp poisonener 
 
 doesnt work on fullduplex or internal yet (bettercap)
 
-⚠️ Warning, its prolly a little bit buggy cuz i rushed releasing it
+⚠️ Warning, doesnt work on full subnet yet, use clientsip to choose which devices to clean

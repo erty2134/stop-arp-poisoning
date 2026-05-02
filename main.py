@@ -13,7 +13,7 @@ def help() -> str:
 def main(argc: int, argv: list[str]) -> None:
     #check if is using root by checking effective user id (euid)
     if (os.geteuid()!=0):
-        raise PermissionError("Permsion denied. USE SUDO!!");
+        raise PermissionError("Permsion denied. USE SUDO!!")
 
     # --help flag
     if argc > 0:
@@ -125,8 +125,11 @@ def main(argc: int, argv: list[str]) -> None:
         # counter poisen the attacker
         # create loops
         target_client_ips = ips_on_same_subnet
-        if len(commands.global_data["clientsip"]) > 0:
-            target_client_ips = commands.global_data["clientsip"]
+        try:
+            if len(commands.global_data["clientsip"]) > 0:
+                target_client_ips = commands.global_data["clientsip"]
+        except KeyError:
+            pass
         for ips in target_client_ips:
             if ips == router_ip:
                 continue
