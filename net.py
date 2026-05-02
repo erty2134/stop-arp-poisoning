@@ -14,6 +14,10 @@ import subprocess
 import re
 conf.verb = 0
 
+def get_router_ip() -> str:
+    """returns routers ip as string"""
+    return conf.route.route("0.0.0.0")[2]
+
 def get_ip()->str:
     """returns ip as string, uses scapy"""
     return get_if_addr(conf.iface)
@@ -34,7 +38,7 @@ def send_arp_request(
         hwdst = target_mac,
         pdst = target_ip
         )
-    return sr1(arp) 
+    return sendp(arp)
 
 def _random_mac()->str:
     mac:str = ""
@@ -60,7 +64,7 @@ def broadcast_ping():
     then pings the related ip
     """
     ips, macs = get_arp_cache()
-    broadcast_ip = None
+    broadcast_ip = "192.168.54.255" # place holder
     for i,v in enumerate(macs):
         if v == "ff:ff:ff:ff:ff:ff":
             broadcast_ip = ips[i]
@@ -76,6 +80,19 @@ def get_unasigned_mac():
         rand_mac = _random_mac()
         if not rand_mac in mac_list:
             mac = rand_mac
+    return mac
+
+def get_mac_from_ip(ip:str) -> str:
+    """returns mac as a string"""
+    ping = subprocess.run(["ping", "-c", "1", ip], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    if ping.returncode == -1:
+        print("SUBPROCESS PING FAILED") # add real error handling later
+        raise
+    ips, macs = get_arp_cache()
+    for i,v in enumerate(ips):
+        if v == ip:
+            mac = macs[i]
+    #mac_pattern = re.compile(rf"{ip} .{1,2}:.{1,2}:.{1,2}:.{1,2}:.{1,2}:.{1,2}")
     return mac
     
 class ArpLoop(threading.Thread):
@@ -94,9 +111,14 @@ class ArpLoop(threading.Thread):
         self._interval = interval
     def run(self):
         while not self._exit.is_set():
-            send_arp_request(self.deviceIp,self.deviceMac,self.sendToIp,self.sendToMac)
+            send_arp_request(self.sendToMac,self.deviceMac,self.deviceIp,self.sendToIp)
             time.sleep(self._interval)
     def stop(self):
         self._exit.set()
     def foo(self):
         return ("bar")
+    
+def main():
+    print(get_router_ip())
+
+if __name__ == "__main__": main()
