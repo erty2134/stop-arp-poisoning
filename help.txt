@@ -1,0 +1,9 @@
+
+- requires sudo
+- set targetip [attacker ip] # normally routers ip during mitm
+- set targetmac [attacker hardware address]
+- start threads
+- stop
+
+doesnt work on, internal, full-duplex or self device
+so make sure that you use static arp entries or something to defend yourself from the mitm before running this script.
