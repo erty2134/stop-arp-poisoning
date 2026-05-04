@@ -12,14 +12,17 @@ import time
 import random
 import subprocess
 import re
+import time
 conf.verb = 0
 
 def get_router_ip() -> str:
     """returns routers ip as string"""
     return conf.route.route("0.0.0.0")[2]
 
-def get_ip()->str:
-    """returns ip as string, uses scapy"""
+def get_ip(split:bool = False) -> str | list[str]:
+    """returns ip as string, uses scapy. or list str if split"""
+    if split:
+        return get_if_addr(conf.iface).split(sep=".")
     return get_if_addr(conf.iface)
 
 def send_arp_request(
@@ -51,18 +54,33 @@ def _random_mac()->str:
 
 def get_arp_cache():
     """returns list of ips [0] and list of macs [1]"""
-    arp_cache = subprocess.run(["arp","-a"], capture_output = True, text = True).stdout
+    arp_cache = subprocess.run(["arp","-an"], capture_output = True, text = True).stdout
     ip_pattern = re.compile(r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}")
-    mac_pattern = re.compile(r".{1,2}:.{1,2}:.{1,2}:.{1,2}:.{1,2}:.{1,2}")
+    mac_pattern = re.compile(r"at\s(.*?)\son")
     ips = ip_pattern.findall(arp_cache)
     macs = mac_pattern.findall(arp_cache)
     return ips, macs
 
-def broadcast_ping():
+def broadcast_ping(subnet_scan: bool = False):
     """
     internal, gets arp cache and searchs for ff:ff:ff:ff:ff:ff \n 
-    then pings the related ip
+    then pings the related ip, no it just pings the 255
+    subnet_scan makes it recusrsively ping all ips under subnet
     """
+    # manually ping everyone on subnet
+    if subnet_scan:
+        processes = []
+        for i in range(0,255): # skips .255
+            ip = get_ip(split=True)
+            ip.pop() # remove final octate
+            ip.append(str(i)) # add i as final octet
+            ip = '.'.join(ip) # make string again
+            processes.append(subprocess.Popen(["ping", "-c", "1", ip], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL))
+        #wait for them to finish
+        for i in processes:
+            i.wait()
+    
+    # broadcast ping
     ips, macs = get_arp_cache()
     broadcast_ip = "192.168.54.255" # place holder
     for i,v in enumerate(macs):
@@ -72,8 +90,8 @@ def broadcast_ping():
     #return sr1(IP(dst=broadcast_ip)/ICMP()) # pyright: ignore[reportUndefinedVariable]
 
 def get_unasigned_mac():
-    """returns mac addr that is not in the given list"""
-    broadcast_ping() # fill arp cache first
+    """returns mac addr that is not in the given list, run broadcast first"""
+    #broadcast_ping(subnet_scan=True) # fill arp cache first
     mac_list: list[str] = get_arp_cache()[1]
     mac = None
     while mac == None:
@@ -82,12 +100,13 @@ def get_unasigned_mac():
             mac = rand_mac
     return mac
 
-def get_mac_from_ip(ip:str) -> str:
+def get_mac_from_ip(ip:str, /, do_ping=True) -> str:
     """returns mac as a string"""
-    ping = subprocess.run(["ping", "-c", "1", ip], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    if ping.returncode == -1:
-        print("SUBPROCESS PING FAILED") # add real error handling later
-        raise
+    if do_ping:
+        ping = subprocess.run(["ping", "-c", "1", ip], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if ping.returncode == -1:
+            print("SUBPROCESS PING FAILED") # add real error handling later
+            raise
     ips, macs = get_arp_cache()
     for i,v in enumerate(ips):
         if v == ip:
