@@ -30,12 +30,12 @@ def send_arp_request(
         sender_mac=get_if_hwaddr("en0"), 
         sender_ip=get_if_addr("en0"), 
         target_ip=None
-        ):
+        ) -> PacketList | None:
     """returns scapy sr1 ans"""
-    arp = Ether( # pyright: ignore[reportUndefinedVariable]
+    arp = Ether(
         dst = target_mac,
         src = sender_mac
-        )/ARP( # pyright: ignore[reportUndefinedVariable]
+        )/ARP(
         hwsrc = sender_mac,
         psrc = sender_ip,
         hwdst = target_mac,
@@ -52,7 +52,7 @@ def _random_mac()->str:
     mac = mac[:-1] # remove the final colon
     return mac
 
-def get_arp_cache():
+def get_arp_cache(system=False) -> tuple[list[str], list[str]]:
     """returns list of ips [0] and list of macs [1]"""
     arp_cache = subprocess.run(["arp","-an"], capture_output = True, text = True).stdout
     ip_pattern = re.compile(r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}")
@@ -61,39 +61,37 @@ def get_arp_cache():
     macs = mac_pattern.findall(arp_cache)
     return ips, macs
 
-def broadcast_ping(subnet_scan: bool = False):
+def broadcast_ping() -> tuple[list]:
     """
-    internal, gets arp cache and searchs for ff:ff:ff:ff:ff:ff \n 
-    then pings the related ip, no it just pings the 255
-    subnet_scan makes it recusrsively ping all ips under subnet
+    broadcast arp ping and returns ips and macs
     """
-    # manually ping everyone on subnet
-    if subnet_scan:
-        processes = []
-        for i in range(0,255): # skips .255
-            ip = get_ip(split=True)
-            ip.pop() # remove final octate
-            ip.append(str(i)) # add i as final octet
-            ip = '.'.join(ip) # make string again
-            processes.append(subprocess.Popen(["ping", "-c", "1", ip], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL))
-        #wait for them to finish
-        for i in processes:
-            i.wait()
-    
-    # broadcast ping
-    ips, macs = get_arp_cache()
-    broadcast_ip = "192.168.54.255" # place holder
-    for i,v in enumerate(macs):
-        if v == "ff:ff:ff:ff:ff:ff":
-            broadcast_ip = ips[i]
-    subprocess.run(["ping", "-c", "1", broadcast_ip], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    #return sr1(IP(dst=broadcast_ip)/ICMP()) # pyright: ignore[reportUndefinedVariable]
+    # arp ping every device
+    packets = []
+    #create packets
+    for i in range(0,255): # skips .255
+        # create send to ip
+        ip = get_ip(split=True)
+        ip.pop() # remove final octate
+        ip.append(str(i)) # add i as final octet
+        ip = '.'.join(ip) # make string again
+        
+        pkt = Ether(dst="ff:ff:ff:ff:ff:ff")/ARP(pdst=ip, op=1)
+        packets.append(pkt)
+    #send and wait for packets
+    response, _ = srp(packets, timeout=1, retry=0, inter=0)
+    response_ip = []
+    response_mac = []
+    for pkt in response:
+        print(pkt.psrc)
+        #response_ip.append(pkt.psrc)
+        #response_mac.append(pkt.hwsrc)
+    return (response_ip, response_mac)
 
-def get_unasigned_mac():
+def get_unasigned_mac() -> str:
     """returns mac addr that is not in the given list, run broadcast first"""
     #broadcast_ping(subnet_scan=True) # fill arp cache first
     mac_list: list[str] = get_arp_cache()[1]
-    mac = None
+    mac: str = None
     while mac == None:
         rand_mac = _random_mac()
         if not rand_mac in mac_list:
@@ -120,7 +118,7 @@ class ArpLoop(threading.Thread):
     - and stop() to stop the loop
     - arp packets are sent every interval \n
     """
-    def __init__(self, deviceIp: str, deviceMac: str, sendToIp: str, sendToMac: str, interval: float = 0.5)->None:
+    def __init__(self, deviceIp: str, deviceMac: str, sendToIp: str, sendToMac: str, interval: float = 0.5) -> None:
         super().__init__(daemon=True)
         self._exit = threading.Event()
         self.deviceIp = deviceIp
@@ -128,16 +126,16 @@ class ArpLoop(threading.Thread):
         self.sendToIp = sendToIp
         self.sendToMac = sendToMac
         self._interval = interval
-    def run(self):
+    def run(self) -> None:
         while not self._exit.is_set():
             send_arp_request(self.sendToMac,self.deviceMac,self.deviceIp,self.sendToIp)
             time.sleep(self._interval)
-    def stop(self):
+    def stop(self) -> None:
         self._exit.set()
-    def foo(self):
+    def foo(self) -> None:
         return ("bar")
     
 def main():
-    print(get_router_ip())
+    print(broadcast_ping())
 
 if __name__ == "__main__": main()
