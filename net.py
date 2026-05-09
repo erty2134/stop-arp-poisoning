@@ -63,28 +63,28 @@ def get_arp_cache(system=False) -> tuple[list[str], list[str]]:
 
 def broadcast_ping() -> tuple[list]:
     """
-    broadcast arp ping and returns ips and macs
+    broadcast arp ping who-has on whole network and returns ips and macs
     """
-    # arp ping every device
-    packets = []
+    # arp ping every device    
     #create packets
-    for i in range(0,255): # skips .255
+    packets: list = []
+    for i in range(0,256): # doesnt skips .255
         # create send to ip
-        ip = get_ip(split=True)
-        ip.pop() # remove final octate
-        ip.append(str(i)) # add i as final octet
-        ip = '.'.join(ip) # make string again
+        ip_split: list[str] = get_ip(split=True)
+        ip_split.pop() # remove final octate
+        ip_split.append(str(i)) # add i as final octet
+        ip: str = '.'.join(ip_split) # make string again
         
         pkt = Ether(dst="ff:ff:ff:ff:ff:ff")/ARP(pdst=ip, op=1)
         packets.append(pkt)
     #send and wait for packets
-    response, _ = srp(packets, timeout=1, retry=0, inter=0)
+    response, _ = srp(packets, timeout=6, retry=3, inter=0.01) # three trys with 6s waits inbetween because of Wi-Fi low-power mode, this ensures all devices are discovered
     response_ip = []
     response_mac = []
-    for pkt in response:
-        print(pkt.psrc)
-        #response_ip.append(pkt.psrc)
-        #response_mac.append(pkt.hwsrc)
+    for i, pkt in enumerate(response):
+        print(f"{i} {pkt.answer.psrc}, {pkt.answer.src}\n")
+        response_ip.append(pkt.answer.psrc)
+        response_mac.append(pkt.answer.src)
     return (response_ip, response_mac)
 
 def get_unasigned_mac() -> str:
