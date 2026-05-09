@@ -130,15 +130,21 @@ def main(argc: int, argv: list[str]) -> int:
         counter_poison_interval = 2
         arp_clean_interval = 5
 
-        if value == "auto":
+        if value == "auto": # not working yet, uses legacy features
             attacker_ip = net.get_router_ip()
             attacker_mac = net.get_mac_from_ip(attacker_ip) # doesnt work because it would return the routers true mac if device has static arp entries
             counter_poison_interval = 2
             arp_clean_interval = 5
 
         # get the data for the loops
+        try:
+            target_client_ips = commands.global_data["clientsip"]
+        except KeyError:
+            display.print("broadcast start, please wait...")
+            ip_cache, mac_cache = net.broadcast_ping()
+            display.print("broadcast ended")
         router_ip = net.get_router_ip()
-        router_mac = net.get_mac_from_ip(router_ip)
+        router_mac = net.get_mac_from_ip(router_ip, ips_and_macs=(ip_cache, mac_cache))
         device_subnet: str = net.get_ip().split(sep='.')[2]
         target_client_ips = []
         try:
@@ -149,11 +155,7 @@ def main(argc: int, argv: list[str]) -> int:
             if len(commands.global_data["clientsip"]) > 0:
                 target_client_ips = commands.global_data["clientsip"]
         except KeyError:
-            display.print("broadcast start, please wait...")
-            net.broadcast_ping(subnet_scan=True)
-            display.print("broadcast ended")
-            arp_ips: list = net.get_arp_cache()[0]
-            ips_on_same_subnet: list[str] = [i for i in arp_ips if f".{device_subnet}." in i]
+            ips_on_same_subnet: list[str] = ip_cache
             commands.global_data["counter_poison_loops"] = []
             for ips in ips_on_same_subnet:
                 #print(f"ips:'{ips}' == '{router_ip}'\t ips[-3:]:'{ips[-3]}'. ips[-1:]:'{ips[-1]}'")
@@ -163,18 +165,9 @@ def main(argc: int, argv: list[str]) -> int:
                 if ips[-3:] == "255": # if ip ends in 225 it is a broadcast and we dont wanna muck with it
                     print(f"'{ips}' continue ips[-3:]")
                     continue
-                if ips[-1:] == "0" and ips[-2:] == ".": # if ip ends in 0 it is maybe broadcast? and i dont wanna muck with it
-                    print(f"'{ips}' continue ips[-1:] == 0")
-                    continue
-                if ips[-1:] == "1" and ips[-2:] == ".": # if ip ends in 1 it is maybe router? and i dont wanna muck with it
-                    print(f"'{ips}' continue ips[-1:] == 1")
-                    continue
                 if ips == attacker_ip:
                     print(f"'{ips}' continue ips == attacker_ip")
                     continue 
-                if net.get_mac_from_ip(ips, do_ping=False) == "(incomplete)": # well then the ip doesnt exist
-                    #print(f"'{ips}' continue incpmplee")
-                    pass
                 target_client_ips.append(ips)
         display.print("finshed getting client ips")
 
@@ -182,8 +175,7 @@ def main(argc: int, argv: list[str]) -> int:
         # create loops
         display.print("Initializing counter poison threads")
         for ips in target_client_ips:
-            #unused_mac = net.get_unasigned_mac()
-            unused_mac = net._random_mac()
+            unused_mac = net.get_unasigned_mac(mac_list=mac_cache)
             commands.global_data["counter_poison_loops"].append(net.ArpLoop(ips, unused_mac, attacker_ip, attacker_mac, interval=counter_poison_interval))
             display.print(f"poison: {ips} bound to {unused_mac}, real net.get_mac_from_ip(ips)")
         # start the loops
@@ -197,8 +189,7 @@ def main(argc: int, argv: list[str]) -> int:
         display.print("Initializing arp cache cleaning threads")
         commands.global_data["clean_arp_caches_loops"] = []
         for ips in target_client_ips:
-            #unused_mac = net.get_unasigned_mac()
-            unused_mac = net._random_mac()
+            unused_mac = net.get_unasigned_mac(mac_list=mac_cache)
             commands.global_data["clean_arp_caches_loops"].append(net.ArpLoop(router_ip, router_mac, ips, net.get_mac_from_ip(ips, do_ping=False), interval=arp_clean_interval))
         # start loops
         display.print("starting arp cache cleaning")
@@ -206,7 +197,7 @@ def main(argc: int, argv: list[str]) -> int:
             arp_loops.start()
 
         try:
-            display.print(f"arp_ips {arp_ips}")
+            display.print(f"arp_ips {ip_cache}")
         except UnboundLocalError: # this is raised if arp_ips doesnt exist
             display.print(f"arp_ips None, because custom clientip list used")
         display.print(f"device_subnet {device_subnet}")
