@@ -20,8 +20,8 @@ def main(argc: int, argv: list[str]) -> int:
     # --help flag
     if argc > 0:
         if "--help" in argv or "-h" in argv:
-            display.print("help:")
-            display.print(help())
+            print("help:")
+            print(help())
 
     commands = cli.CommandSerialization()
     display = cli.Display()
