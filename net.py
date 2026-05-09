@@ -53,7 +53,10 @@ def _random_mac()->str:
     return mac
 
 def get_arp_cache(system=False) -> tuple[list[str], list[str]]:
-    """returns list of ips [0] and list of macs [1]"""
+    """
+    returns list of ips [0] and list of macs [1] from os arp cache.\n
+    Dont use this. This is bad and slow and uses subproccess instead of scapy
+    """
     arp_cache = subprocess.run(["arp","-an"], capture_output = True, text = True).stdout
     ip_pattern = re.compile(r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}")
     mac_pattern = re.compile(r"at\s(.*?)\son")
@@ -87,10 +90,11 @@ def broadcast_ping() -> tuple[list]:
         response_mac.append(pkt.answer.src)
     return (response_ip, response_mac)
 
-def get_unasigned_mac() -> str:
+def get_unasigned_mac(mac_list: list[str]|None = None) -> str:
     """returns mac addr that is not in the given list, run broadcast first"""
-    #broadcast_ping(subnet_scan=True) # fill arp cache first
-    mac_list: list[str] = get_arp_cache()[1]
+    if not mac_list:
+        mac_list: list[str] = get_arp_cache()[1] # legacy
+
     mac: str = None
     while mac == None:
         rand_mac = _random_mac()
@@ -98,8 +102,21 @@ def get_unasigned_mac() -> str:
             mac = rand_mac
     return mac
 
-def get_mac_from_ip(ip:str, /, do_ping=True) -> str:
-    """returns mac as a string"""
+def get_mac_from_ip(ip:str, /, do_ping=True, ips_and_macs: tuple[list[str],list[str]]=None) -> str:
+    """
+    returns mac as a strin, set ips_and_macs to a tuple containing\n
+    two lists of ips and macs respectively
+    """
+    if ips_and_macs:
+        mac: str = None
+        ips, macs = ips_and_macs
+        for i,v in enumerate(ips):
+            if v == ip:
+                mac = macs[i]
+        return mac
+    
+    # legacy version
+    mac = None
     if do_ping:
         ping = subprocess.run(["ping", "-c", "1", ip], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         if ping.returncode == -1:
@@ -136,6 +153,7 @@ class ArpLoop(threading.Thread):
         return ("bar")
     
 def main():
-    print(broadcast_ping())
+    ips, macs = broadcast_ping()
+    get_mac_from_ip("192.168.54.105", ips_and_macs=(ips, macs))
 
 if __name__ == "__main__": main()
