@@ -68,4 +68,5 @@ it will take ~34.2 seconds to fininish broadcasting the network because it sends
 
 after that the rest of the steps should be instant.
 
+## bugs
 if anything doesnt work create an issue on my github
