@@ -6,6 +6,7 @@ doesnt work on fullduplex or internal yet (bettercap)
 how to use:
 create a python venv and download the requirements
 python 3.14
+
 ⚠️ before any mitms note down the routers mac address
 
 
@@ -21,7 +22,7 @@ note the attackers mac address, the mac will be the one associated with the rout
 
 
 #### 2. escape the mitm with static arp entry
-run this command to setup a static arp entry (11:22:33:44:55:66 is my routers ip)
+run this command to setup a static arp entry (11:22:33:44:55:66 is my routers mac)
 ```zsh
 arp -s 192.168.54.1 11:22:33:44:55:66
 ```
