@@ -29,7 +29,7 @@ replace the mac at the end of the command with the routers mac address
 
 
 #### 3. get ip of the attacker
-now that we have escaped his attack, lets find the attacker ip
+now that we have escaped the attackers mac, lets find the attackers ip
 run arp -a again
 ```zsh
 arp -a
