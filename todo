@@ -1,0 +1,32 @@
+main:
+    - ideas:
+        - try ip spoofing instead of mac spoofing or maybe both at the same time
+        - use dhcp spoofing
+        - make client appear on different subnet
+    - break 'threads' command into 'probe' and 'defend' commands
+    - network snapshots
+    - fix kill threads
+
+net:
+    - remove legacy subrpoccess code
+    - maybe error handling for get_mac_from_ip() if it doesnt find an ip, maybe not
+
+cli:
+    - display.error instead of display.print("my error")
+    - history
+    - arrow key control
+    - update documentation to say how it has statements and commands
+    - alias for command and statement names
+    - show statement name when not found
+
+other:
+    - command, observer and template??
+    - installer with a  .zsh
+
+test:
+    - counter poisen
+    - get mac from ip
+    - clean arp caches
+
+optimisation:
+    - make broadcast faster with less rounds of scapy arppinging

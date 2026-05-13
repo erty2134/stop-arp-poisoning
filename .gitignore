@@ -1,5 +1,4 @@
 .venv/
-todo
 __pycache__/
 .vscode/
 profile.prof
