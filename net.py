@@ -29,13 +29,15 @@ def send_arp_request(
         target_mac=None, 
         sender_mac=get_if_hwaddr("en0"), 
         sender_ip=get_if_addr("en0"), 
-        target_ip=None
+        target_ip=None,
+        oper: int=1
         ) -> PacketList | None:
     """returns scapy sr1 ans"""
     arp = Ether(
         dst = target_mac,
         src = sender_mac
         )/ARP(
+        op=oper,
         hwsrc = sender_mac,
         psrc = sender_ip,
         hwdst = target_mac,
@@ -102,6 +104,15 @@ def get_unasigned_mac(mac_list: list[str]|None = None) -> str:
             mac = rand_mac
     return mac
 
+def get_ip_from_mac(mac: str, ips_and_macs: tuple[list[str],list[str]]):
+    if ips_and_macs:
+        ip: str = None
+        ips, macs = ips_and_macs
+        for i,v in enumerate(macs):
+            if v == mac:
+                ip = ips[i]
+        return ip
+
 def get_mac_from_ip(ip:str, /, do_ping=True, ips_and_macs: tuple[list[str],list[str]]=None) -> str:
     """
     returns mac as a strin, set ips_and_macs to a tuple containing\n
@@ -145,7 +156,7 @@ class ArpLoop(threading.Thread):
         self._interval = interval
     def run(self) -> None:
         while not self._exit.is_set():
-            send_arp_request(self.sendToMac,self.deviceMac,self.deviceIp,self.sendToIp)
+            send_arp_request(self.sendToMac,self.deviceMac,self.deviceIp,self.sendToIp, oper=2)
             time.sleep(self._interval)
     def stop(self) -> None:
         self._exit.set()
