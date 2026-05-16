@@ -28,6 +28,7 @@ def main(argc: int, argv: list[str]) -> int:
     def initialize_global_data():
         commands.global_data["poisoninterval"] = 3
         commands.global_data["cleaninterval"] = 3
+        commands.global_data["reconnection_interval"] = 3
         commands.global_data["targetip"] = "192.168.54.42"
         commands.global_data["targetmac"] = "0e:d9:6c:6e:44:62"
         # ⌄ cant define it yet cuz my shitty code relys on the 
@@ -234,7 +235,7 @@ def main(argc: int, argv: list[str]) -> int:
         display.print("Initializing arp cache cleaning threads")
         commands.global_data["clean_arp_caches_loops"] = []
         for ips in target_client_ips:
-            unused_mac = net.get_unasigned_mac(mac_list=mac_cache+unused_mac)
+            unused_mac = net.get_unasigned_mac(mac_list=mac_cache+unused_mac_all)
             unused_mac_all.append(unused_mac)
             commands.global_data["clean_arp_caches_loops"].append(net.ArpLoop(router_ip, router_mac, ips, net.get_mac_from_ip(ips, ips_and_macs=(ip_cache, mac_cache)), interval=arp_clean_interval))
         # start loops
@@ -246,9 +247,10 @@ def main(argc: int, argv: list[str]) -> int:
         # create loops
         display.print("Initializing counter reconnect loops")
         for ips in target_client_ips:
-            unused_mac = net.get_unasigned_mac(mac_list=mac_cache+unused_mac)
+            unused_mac = net.get_unasigned_mac(mac_list=mac_cache+unused_mac_all)
             unused_mac_all.append(unused_mac)
-            commands.global_data["counter_reconnect_loops"].append(net.ArpLoop(attacker_ip, unused_mac, net.get_mac_from_ip(ips, ips_and_macs=(ip_cache, mac_cache)), interval=prevent_reconnection_interval))
+            display.print(f"poison: {attacker_ip} bound to {unused_mac}, real {attacker_mac} > for {ips}, {net.get_mac_from_ip(ips,ips_and_macs=(ip_cache, mac_cache))}")
+            commands.global_data["counter_reconnect_loops"].append(net.ArpLoop(attacker_ip, unused_mac, ips, net.get_mac_from_ip(ips, ips_and_macs=(ip_cache, mac_cache)), interval=prevent_reconnection_interval))
         # start loops
         for arp_loops in commands.global_data["counter_reconnect_loops"]:
             arp_loops.start()
