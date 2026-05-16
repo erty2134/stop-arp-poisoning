@@ -1,4 +1,5 @@
 main:
+    - get rid of most the trys
     - ideas:
         - try ip spoofing instead of mac spoofing or maybe both at the same time
         - use dhcp spoofing

@@ -31,8 +31,12 @@ def main(argc: int, argv: list[str]) -> int:
         commands.global_data["targetip"] = "192.168.54.42"
         commands.global_data["targetmac"] = "0e:d9:6c:6e:44:62"
         # ⌄ cant define it yet cuz my shitty code relys on the 
-        # ⌄ Keyerror of when the key doesnt exist
+        # ⌄ Keyerror of when the key doesnt exist in the get command for threads
         # commands.global_data["counter_poison_loops"]
+        commands.global_data["counter_poison_loops"] = []
+        commands.global_data["clean_arp_caches_loops"] = []
+        commands.global_data["counter_reconnect_loops"] = []
+        commands.global_data["clientsip"] = []
 
 
     @commands.create_command("snapshot")
@@ -113,7 +117,7 @@ def main(argc: int, argv: list[str]) -> int:
             display.print(f"Statement not valid '{statement}'")
 
     @commands.create_command("threads")
-    def start_command(statement, command, value):
+    def start_command(statement, command, value) -> None:
         #send broadcast ping to get a big arp cache X
 
         #   ## counter poisen XX
@@ -128,20 +132,29 @@ def main(argc: int, argv: list[str]) -> int:
         #   sends to: iterations mac, iterations ip
 
         if statement == "get":
-            try:
-                display.print(f"counter poison: {commands.global_data["counter_poison_loops"]}")
-            except KeyError:
+            if len(commands.global_data["counter_poison_loops"]) > 0:
+                display.print(f"counter poison: {commands.global_data["counter_poison_loops"]}")                
+            else:
                 display.print("no counter_poison_loops threads")
-            try:
+
+            if len(commands.global_data["clean_arp_caches_loops"]) > 0:
                 display.print(f"clean cache: {commands.global_data["clean_arp_caches_loops"]}")
-            except KeyError:
+            else:
                 display.print("no clean_arp_caches_loops threads")
+
+            if len(commands.global_data["counter_reconnect_loops"]) > 0:
+                display.print(f"counter reconnect: {commands.global_data["counter_reconnect_loops"]}")
+            else:
+                display.print("no counter reconnect threads")
             return
+        
         if statement == "stop":
             display.print("stopping threads...")
             for arp_loops in commands.global_data["counter_poison_loops"]:
                 arp_loops.stop()
             for arp_loops in commands.global_data["clean_arp_caches_loops"]:
+                arp_loops.stop()
+            for arp_loops in commands.global_data["counter_reconnect_loops"]:
                 arp_loops.stop()
             display.print("all threads stopped")
             return
@@ -152,6 +165,9 @@ def main(argc: int, argv: list[str]) -> int:
             for i, v in enumerate(commands.global_data["clean_arp_caches_loops"]):
                 v.stop()
                 del commands.global_data["clean_arp_caches_loops"][i]
+            for i, v in enumerate(commands.global_data["counter_reconnect_loops"]):
+                v.stop()
+                del commands.global_data["clean_arp_caches_loops"][i]
             return
 
         # get user inputed data
@@ -159,11 +175,12 @@ def main(argc: int, argv: list[str]) -> int:
         attacker_mac: str = commands.global_data["targetmac"]
         counter_poison_interval = commands.global_data["poisoninterval"]
         arp_clean_interval = commands.global_data["cleaninterval"]
+        prevent_reconnection_interval = commands.global_data["reconnection_interval"]
 
         # get the data for the loops
-        try:
+        if len(commands.global_data["clientsip"]) > 0:
             target_client_ips = commands.global_data["clientsip"]
-        except KeyError:
+        else:
             display.print("broadcast start, please wait...")
             ip_cache, mac_cache = net.broadcast_ping()
             display.print("broadcast ended")
@@ -171,14 +188,10 @@ def main(argc: int, argv: list[str]) -> int:
         router_mac = net.get_mac_from_ip(router_ip, ips_and_macs=(ip_cache, mac_cache))
         device_subnet: str = net.get_ip().split(sep='.')[2]
         target_client_ips = []
-        try:
-            commands.global_data["counter_poison_loops"]
-        except KeyError:
-            commands.global_data["counter_poison_loops"] = []
-        try:
-            if len(commands.global_data["clientsip"]) > 0:
-                target_client_ips = commands.global_data["clientsip"]
-        except KeyError:
+
+        if len(commands.global_data["clientsip"]) > 0:
+            target_client_ips = commands.global_data["clientsip"]
+        else:
             ips_on_same_subnet: list[str] = ip_cache
             commands.global_data["counter_poison_loops"] = []
             for ips in ips_on_same_subnet:
@@ -201,11 +214,13 @@ def main(argc: int, argv: list[str]) -> int:
                 target_client_ips.append(ips)
         display.print("finshed getting client ips")
 
+        unused_mac_all: list[str] = []
         # send -counter- poison to the attacker
         # create loops
         display.print("Initializing counter poison threads")
         for ips in target_client_ips:
-            unused_mac = net.get_unasigned_mac(mac_list=mac_cache)
+            unused_mac = net.get_unasigned_mac(mac_list=mac_cache+unused_mac_all)
+            unused_mac_all.append(unused_mac)
             commands.global_data["counter_poison_loops"].append(net.ArpLoop(ips, unused_mac, attacker_ip, attacker_mac, interval=counter_poison_interval))
             display.print(f"poison: {ips} bound to {unused_mac}, real {net.get_mac_from_ip(ips, ips_and_macs=(ip_cache, mac_cache))}")
         # start the loops
@@ -219,12 +234,25 @@ def main(argc: int, argv: list[str]) -> int:
         display.print("Initializing arp cache cleaning threads")
         commands.global_data["clean_arp_caches_loops"] = []
         for ips in target_client_ips:
-            unused_mac = net.get_unasigned_mac(mac_list=mac_cache)
-            commands.global_data["clean_arp_caches_loops"].append(net.ArpLoop(router_ip, router_mac, ips, net.get_mac_from_ip(ips, do_ping=False), interval=arp_clean_interval))
+            unused_mac = net.get_unasigned_mac(mac_list=mac_cache+unused_mac)
+            unused_mac_all.append(unused_mac)
+            commands.global_data["clean_arp_caches_loops"].append(net.ArpLoop(router_ip, router_mac, ips, net.get_mac_from_ip(ips, ips_and_macs=(ip_cache, mac_cache)), interval=arp_clean_interval))
         # start loops
         display.print("starting arp cache cleaning")
         for arp_loops in commands.global_data["clean_arp_caches_loops"]:
             arp_loops.start()
+
+        # prevent reconnection
+        # create loops
+        display.print("Initializing counter reconnect loops")
+        for ips in target_client_ips:
+            unused_mac = net.get_unasigned_mac(mac_list=mac_cache+unused_mac)
+            unused_mac_all.append(unused_mac)
+            commands.global_data["counter_reconnect_loops"].append(net.ArpLoop(attacker_ip, unused_mac, net.get_mac_from_ip(ips, ips_and_macs=(ip_cache, mac_cache)), interval=prevent_reconnection_interval))
+        # start loops
+        for arp_loops in commands.global_data["counter_reconnect_loops"]:
+            arp_loops.start()
+
 
         try:
             display.print(f"arp_ips {ip_cache}")
