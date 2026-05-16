@@ -1,5 +1,5 @@
 main:
-    - get rid of most the trys
+    - get rid of most the weird try blocks
     - ideas:
         - try ip spoofing instead of mac spoofing or maybe both at the same time
         - use dhcp spoofing
