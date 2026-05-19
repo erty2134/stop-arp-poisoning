@@ -72,15 +72,21 @@ def main(argc: int, argv: list[str]) -> int:
     @commands.create_command("poisoninterval")
     def poison_interval(statement, command, value):
         if statement == "set":
-            commands.global_data["poisoninterval"] = value
+            commands.global_data["poisoninterval"] = int(value)
         if statement == "get":
             display.print(commands.global_data["poisoninterval"])
     @commands.create_command("cleaninterval")
     def clean_interval(statement, command, value):
         if statement == "set":
-            commands.global_data["cleaninterval"] = value
+            commands.global_data["cleaninterval"] = int(value)
         if statement == "get":
             display.print(commands.global_data["cleaninterval"])
+    @commands.create_command("isolateinterval")
+    def clean_interval(statement, command, value):
+        if statement == "set":
+            commands.global_data["reconnection_interval"] = int(value)
+        if statement == "get":
+            display.print(commands.global_data["reconnection_interval"])
 
     @commands.create_command("targetip")
     def target_ip(statement, command, value):
@@ -223,7 +229,7 @@ def main(argc: int, argv: list[str]) -> int:
             unused_mac = net.get_unasigned_mac(mac_list=mac_cache+unused_mac_all)
             unused_mac_all.append(unused_mac)
             commands.global_data["counter_poison_loops"].append(net.ArpLoop(ips, unused_mac, attacker_ip, attacker_mac, interval=counter_poison_interval))
-            display.print(f"poison: {ips} bound to {unused_mac}, real {net.get_mac_from_ip(ips, ips_and_macs=(ip_cache, mac_cache))}")
+            display.print(f"poison: {ips} bound to {unused_mac}, real {net.get_mac_from_ip(ips, ips_and_macs=(ip_cache, mac_cache))} > for {attacker_ip}, {attacker_mac}")
         # start the loops
         display.print("starting counter poison...")
         for arp_loops in commands.global_data["counter_poison_loops"]:
