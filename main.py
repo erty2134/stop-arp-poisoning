@@ -26,9 +26,9 @@ def main(argc: int, argv: list[str]) -> int:
     display = cli.Display()
 
     def initialize_global_data():
-        commands.global_data["poisoninterval"] = 3
-        commands.global_data["cleaninterval"] = 3
-        commands.global_data["reconnection_interval"] = 3
+        commands.global_data["poisoninterval"] = 0.5
+        commands.global_data["cleaninterval"] = 2
+        commands.global_data["reconnection_interval"] = 2
         commands.global_data["targetip"] = "192.168.54.42"
         commands.global_data["targetmac"] = "0e:d9:6c:6e:44:62"
         # ⌄ cant define it yet cuz my shitty code relys on the 
@@ -174,7 +174,7 @@ def main(argc: int, argv: list[str]) -> int:
                 del commands.global_data["clean_arp_caches_loops"][i]
             for i, v in enumerate(commands.global_data["counter_reconnect_loops"]):
                 v.stop()
-                del commands.global_data["clean_arp_caches_loops"][i]
+                del commands.global_data["counter_reconnect_loops"][i]
             return
 
         # get user inputed data
