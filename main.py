@@ -307,7 +307,9 @@ def main(argc: int, argv: list[str]) -> int:
             sendToIp=router_ip,
             sendToMac=router_mac
         )
-        
+
+        if statement == "get":
+            display.print(f"ban: spoofing attacker is {ban_poison_attacker.is_alive()}, spoofing router is {ban_poison_router.is_alive()}")
         if statement == "start":
             ban_poison_attacker.start()
             display.print(f"spoof, {router_ip} at {ANSI.ITALIC.value}{unused_mac}{ANSI.END.value}{ANSI.DIM.value} (real '{router_mac}') for '{attacker_ip}' at '{attacker_mac}'")
