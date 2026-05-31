@@ -26,6 +26,7 @@ def main(argc: int, argv: list[str]) -> int:
     display = cli.Display()
 
     def initialize_global_data():
+        commands.global_data["broadcast"] = []
         commands.global_data["poisoninterval"] = 0.5
         commands.global_data["cleaninterval"] = 2
         commands.global_data["reconnection_interval"] = 2
@@ -123,6 +124,12 @@ def main(argc: int, argv: list[str]) -> int:
         else:
             display.print(f"Statement not valid '{statement}'")
 
+    @commands.create_statement("broadcast")
+    def broadcast_command() -> None:
+        display.print("broadcast start, please wait...")
+        commands.global_data["broadcast"] = net.broadcast_ping()
+        display.print("broadcast ended")
+
     @commands.create_command("threads")
     def start_command(statement, command, value) -> None:
         #send broadcast ping to get a big arp cache X
@@ -154,7 +161,6 @@ def main(argc: int, argv: list[str]) -> int:
             else:
                 display.print("no counter reconnect threads")
             return
-        
         if statement == "stop":
             display.print("stopping threads...")
             for arp_loops in commands.global_data["counter_poison_loops"]:
@@ -185,12 +191,13 @@ def main(argc: int, argv: list[str]) -> int:
         prevent_reconnection_interval = commands.global_data["reconnection_interval"]
 
         # get the data for the loops
+        if len(commands.global_data["broadcast"]) == 0 and len(commands.global_data["clientsip"]) == 0:
+            display.print("Warning! no ips cached, use 'broadcast' or 'add clientsip ...'")
+            return
         if len(commands.global_data["clientsip"]) > 0:
             target_client_ips = commands.global_data["clientsip"]
         else:
-            display.print("broadcast start, please wait...")
-            ip_cache, mac_cache = net.broadcast_ping()
-            display.print("broadcast ended")
+            ip_cache, mac_cache = commands.global_data["broadcast"]
         router_ip = net.get_router_ip()
         router_mac = net.get_mac_from_ip(router_ip, ips_and_macs=(ip_cache, mac_cache))
         device_subnet: str = net.get_ip().split(sep='.')[2]
