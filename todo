@@ -1,4 +1,5 @@
 main:
+    - more throughouly test if ban works
     - rename reconnection_interval to client_isolation_interval
     - get rid of most the weird try blocks
     - ideas:
