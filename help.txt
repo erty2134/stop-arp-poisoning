@@ -1,0 +1,42 @@
+
+- requires sudo
+- note the routers mac before running
+
+commands:
+    - set to set a value
+    - get to get a value
+    - start to start a thread
+    - stop to stop a thread
+    - kill to kill a thread
+    - or just type in the command name for a non-thread command
+
+what each command does
+    help, displays this
+    broadcast, sends rounds of arppings to wake devices and store there ips and macs
+    threads, stops there arp poisoning
+    ban, bans attacker off wifi
+    exit or quit, quits. you can also use ^C to quit
+
+
+basic steps
+    1. help
+
+    2. broadcast
+    
+    3. set poisoninterval 1
+    4. set cleaninterval 1
+    5 .set reconnection_interval 1
+    6. start threads
+    7. get thread
+
+    8. set baninterval 1
+    9. start ban
+    10. get ban
+
+    11. stop threads
+    12. stop ban
+    ^C or quit
+
+
+hasnt been tested on: internal or full-duplex
+so make sure that you use static arp entries or something to defend yourself from the mitm before running this script cuz i havent added a defense thingy yet

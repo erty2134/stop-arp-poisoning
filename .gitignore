@@ -1,5 +1,3 @@
-libioctl_wrapper.dylib
 todo
 .vscode/
 __pycache__/
-profile.prof
