@@ -1,30 +1,42 @@
 """
-Scapy based module contains 4 functions and one Class\n
+Bpf based module contains 4 functions and one Class\n
 - get_ip\n
 - send_arp_request\n
 - get_arp_cache\n
 - get_unasigned_mac\n
 - ArpLoop (this is the class)\n
 """
-from scapy.all import *
 import threading
 import time
 import random
 import subprocess
 import re
 import time
-conf.verb = 0
 
 def get_router_ip() -> str:
-    """returns routers ip as string"""
-    return conf.route.route("0.0.0.0")[2]
+    """
+    returns routers ip as string, 
+    route -n get default | grep gateway
+    """
+    output: subprocess.Popen = subprocess.Popen(("route", "-n", "get", "default"), stdout=subprocess.PIPE, text=True)
+    gateway: subprocess.Popen = subprocess.Popen(["grep", "gateway"], stdin=output.stdout, stdout=subprocess.PIPE, text=True)
+    
+    # [0] communicate returns output to 0, and error to 1. 
+    # [len("   gateway: ")] this removes the word gateway from the output. 
+    # [:-1] removes the \n at the end
+    ip: str = gateway.communicate()[0][len("    gateway: "):][:-1]
+    
+    output.stdout.close()
+    return ip
 
-def get_ip(split:bool = False) -> str | list[str]:
-    """returns ip as string, uses scapy. or list str if split"""
-    if split:
-        return get_if_addr(conf.iface).split(sep=".")
-    return get_if_addr(conf.iface)
-
+def get_ipv4_address():
+    output = subprocess.run(
+        ("ipconfig", "getifaddr", "en0"),
+        capture_output = True,
+        shell=False,
+        text=True
+    )
+"""
 def send_arp_request(
         target_mac=None, 
         sender_mac=get_if_hwaddr("en0"), 
@@ -32,7 +44,7 @@ def send_arp_request(
         target_ip=None,
         oper: int=1
         ) -> PacketList | None:
-    """returns scapy sr1 ans"""
+    #""returns scapy sr1 ans""
     arp = Ether(
         dst = target_mac,
         src = sender_mac
@@ -44,7 +56,7 @@ def send_arp_request(
         pdst = target_ip
         )
     return sendp(arp)
-
+"""
 def _random_mac()->str:
     mac:str = ""
     for i in range(6):
@@ -65,11 +77,11 @@ def get_arp_cache(system=False) -> tuple[list[str], list[str]]:
     ips = ip_pattern.findall(arp_cache)
     macs = mac_pattern.findall(arp_cache)
     return ips, macs
-
+"""
 def broadcast_ping() -> tuple[list]:
-    """
+    ""
     broadcast arp ping who-has on whole network and returns ips and macs
-    """
+    ""
     # arp ping every device    
     #create packets
     packets: list = []
@@ -91,7 +103,7 @@ def broadcast_ping() -> tuple[list]:
         response_ip.append(pkt.answer.psrc)
         response_mac.append(pkt.answer.src)
     return (response_ip, response_mac)
-
+"""
 def get_unasigned_mac(mac_list: list[str]|None = None) -> str:
     """returns mac addr that is not in the given list, run broadcast first"""
     if not mac_list:
@@ -156,7 +168,7 @@ class ArpLoop(threading.Thread):
         self._interval = interval
     def run(self) -> None:
         while not self._exit.is_set():
-            send_arp_request(self.sendToMac,self.deviceMac,self.deviceIp,self.sendToIp, oper=2)
+            #send_arp_request(self.sendToMac,self.deviceMac,self.deviceIp,self.sendToIp, oper=2)
             time.sleep(self._interval)
     def stop(self) -> None:
         self._exit.set()
@@ -164,7 +176,6 @@ class ArpLoop(threading.Thread):
         return ("bar")
     
 def main():
-    ips, macs = broadcast_ping()
-    get_mac_from_ip("192.168.54.105", ips_and_macs=(ips, macs))
+    print(get_router_ip())
 
 if __name__ == "__main__": main()
