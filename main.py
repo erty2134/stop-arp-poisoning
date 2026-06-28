@@ -3,6 +3,7 @@ import os
 from datetime import datetime
 import cli
 import net
+from bpf.packets import get_ipv4_address
 from ansii import ANSI
 
 def help() -> str:
@@ -134,7 +135,14 @@ def main(argc: int, argv: list[str]) -> int:
     @commands.create_statement("broadcast")
     def broadcast_command() -> None:
         display.print("broadcast start, please wait...")
-        commands.global_data["broadcast"] = net.broadcast_ping()
+        net.broadcast_ping()
+        arp_table = net.get_arp_cache()
+        ips: list[str] = []
+        macs: list[str] = []
+        for entry in arp_table:
+            ips.append(entry[0])
+            macs.append(entry[0])
+        commands.global_data["broadcast"] = (ips, macs)
         display.print("broadcast ended")
 
     @commands.create_command("threads")
@@ -257,7 +265,7 @@ def main(argc: int, argv: list[str]) -> int:
         for ips in target_client_ips:
             unused_mac = net.get_unasigned_mac(mac_list=mac_cache+unused_mac_all)
             unused_mac_all.append(unused_mac)
-            commands.global_data["clean_arp_caches_loops"].append(net.ArpLoop(router_ip, router_mac, ips, net.get_mac_from_ip(ips, ips_and_macs=(ip_cache, mac_cache)), interval=arp_clean_interval))
+            commands.global_data["clean_arp_caches_loops"].append(net.ArpLoop(router_ip, router_mac, ips, net.get_mac_from_ip(ips, ips_and_macs=(ip_cache, mac_cache)), interval=arp_clean_interval)) # <
         # start loops
         display.print("starting arp cache cleaning")
         for arp_loops in commands.global_data["clean_arp_caches_loops"]:
@@ -336,7 +344,7 @@ def main(argc: int, argv: list[str]) -> int:
 
     # setup cli
     COLOUR = ANSI.YELLOWBG.value + ANSI.BLACK.value
-    display.prefix = f"{COLOUR}{datetime.now().strftime("%H:%M:%S")} 〉{ANSI.BOLD.value}{net.get_ip()}{ANSI.END.value}{ANSI.YELLOW.value} » {ANSI.END.value}"
+    display.prefix = f"{ANSI.YELLOWBG.value}{datetime.now().strftime("%H:%M:%S")}{COLOUR} 〉{ANSI.BOLD.value}{net.get_ip()}{ANSI.END.value}{ANSI.YELLOW.value} » {ANSI.END.value}"
     display.suffix = f"{ANSI.END.value}\n"
     display.prePrint = f"{ANSI.DIM.value}"
     display.preInput = f"{ANSI.BOLD.value}"
@@ -345,7 +353,7 @@ def main(argc: int, argv: list[str]) -> int:
     initialize_global_data()
     while True:
         # v sets the prefix again to update time
-        display.prefix = f"{COLOUR}{datetime.now().strftime("%H:%M:%S")} 〉{ANSI.BOLD.value}{net.get_ip()}{ANSI.END.value}{ANSI.YELLOW.value} » {ANSI.END.value}"
+        display.prefix = f"{ANSI.YELLOWBG.value}{datetime.now().strftime("%H:%M:%S")}{COLOUR} 〉{ANSI.BOLD.value}{net.get_ip()}{ANSI.END.value}{ANSI.YELLOW.value} » {ANSI.END.value}"
         try:
             user_input = display.input()
         except KeyboardInterrupt: # graceful keyboard interupt

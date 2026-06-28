@@ -1,7 +1,7 @@
 import ctypes
-import ioccom
-from socket_ import *
-from timeval import *
+from bpf import ioccom
+from bpf.socket_ import *
+from bpf.timeval import *
 
 IFNAMSIZ = 16
 bpf_int32 = ctypes.c_int32
