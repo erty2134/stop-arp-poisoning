@@ -46,7 +46,7 @@ def ascii_to_ethernet(ascii_mac: str) -> bytes:
     try:
         ethernet_address: bytes = bytes.fromhex(clean)
     except Exception as e:
-        print(f"hey nigger, ascii_mac is '{ascii_mac}'\n and result was {':'.join(split)}")
+        print(f"errror, ascii_mac is '{ascii_mac}'\n and result was {':'.join(split)}")
         raise
     return ethernet_address
 
