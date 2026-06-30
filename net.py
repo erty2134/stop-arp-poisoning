@@ -54,7 +54,7 @@ def get_arp_cache() -> list[tuple[str, str]]:
     arp_cache = subprocess.run(["arp","-an"], capture_output = True, text = True).stdout
     
     ip_pattern = re.compile(r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}")
-    mac_pattern = re.compile(r".{1,2}:.{1,2}:.{1,2}:.{1,2}:.{1,2}:.{1,2}")
+    mac_pattern = re.compile(r"[1234567890abcdef]{1,2}:[1234567890abcdef]{1,2}:[1234567890abcdef]{1,2}:[1234567890abcdef]{1,2}:[1234567890abcdef]{1,2}:[1234567890abcdef]{1,2}", flags=re.I) # i for no case sensi
     
     arp_table: list[tuple[str, str]] = []
     for line in arp_cache.splitlines():

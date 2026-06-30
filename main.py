@@ -141,8 +141,9 @@ def main(argc: int, argv: list[str]) -> int:
         macs: list[str] = []
         for entry in arp_table:
             ips.append(entry[0])
-            macs.append(entry[0])
+            macs.append(entry[1])
         commands.global_data["broadcast"] = (ips, macs)
+        display.print(commands.global_data["broadcast"])
         display.print("broadcast ended")
 
     @commands.create_command("threads")
@@ -357,7 +358,8 @@ def main(argc: int, argv: list[str]) -> int:
         try:
             user_input = display.input()
         except KeyboardInterrupt: # graceful keyboard interupt
-            print("\n") # adds extra line because ^C doesnt create new line like [ENTER]
+            print("\n") # adds extra line because ^C doesnt create new line
+            continue
             display.print("quitting...")
             return 1
         error: str = commands.update(user_input)
@@ -365,4 +367,4 @@ def main(argc: int, argv: list[str]) -> int:
             display.print(error)
 
 if __name__ == "__main__": 
-    sys.exit(main(len(sys.argv), sys.argv))
+    raise SystemExit(main(len(sys.argv), sys.argv))

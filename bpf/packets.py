@@ -36,10 +36,18 @@ def get_mac_address(interface: str="en0") -> str:
     return mac
 
 def ascii_to_ethernet(ascii_mac: str) -> bytes:
-    clean: str = ascii_mac.replace(":", "").lower()
-    if len(clean) != 12:
-        raise ValueError("Invalid MAC address length")
-    ethernet_address: bytes = bytes.fromhex(clean)
+    split: list[str] = ascii_mac.lower().split(":")
+    if len(split) != 6:
+        raise ValueError(f"Invalid MAC address length at '{ascii_mac}'")
+    for index, octet in enumerate(split):
+        if len(octet) == 1:
+            split[index] = "0" + octet
+    clean: str = "".join(split)
+    try:
+        ethernet_address: bytes = bytes.fromhex(clean)
+    except Exception as e:
+        print(f"hey nigger, ascii_mac is '{ascii_mac}'\n and result was {':'.join(split)}")
+        raise
     return ethernet_address
 
 def ip_string_to_bytes(ip_string: str) -> bytes:
@@ -163,14 +171,13 @@ class Arp_Packet:
 
 def main():
     my_ips: list[str] = [
-        "123.456.1.1",
-        "123.456.1.22",
-        "123.456.22.1",
-        "123.456.22.22",
+        "1:0:5e:0:d:fb",
+        "01:0:5e:00:0:fb",
+        "00:01:5e:0:0:fb",
+        "10:0:5e:0:0:fb",
     ]
     #ip_string_to_bytes("192.168.54.412", size=6)
-    for i in my_ips:
-        ip_string_to_bytes(i)
-        print()
+    #for i in my_ips:
+    ascii_to_ethernet(my_ips[0])
 
 if __name__ == "__main__" : main()
