@@ -372,14 +372,15 @@ def main(argc: int, argv: list[str]) -> int:
         display.print(help())
     
     # idk how to make an alias :(
+    def quit_alias() -> None:
+        display.print("exiting...")
+        sys.exit(0)
     @commands.create_statement("quit")
     def exit_statement():
-        display.print("exiting...")
-        sys.exit(0)
+        quit_alias()
     @commands.create_statement("exit")
     def exit_statement():
-        display.print("exiting...")
-        sys.exit(0)
+        quit_alias()
 
     # setup cli
     COLOUR = ANSI.YELLOWBG.value + ANSI.BLACK.value
