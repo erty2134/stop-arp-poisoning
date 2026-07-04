@@ -141,13 +141,8 @@ def get_mac_from_ip(ip:str, /, do_ping=True, ips_and_macs: tuple[list[str],list[
             mac = macs[i]
     #mac_pattern = re.compile(rf"{ip} .{1,2}:.{1,2}:.{1,2}:.{1,2}:.{1,2}:.{1,2}")
     return mac
-    
-class ArpLoop(threading.Thread):
-    """Creates an object that constantly sends arp packets\n
-    - run() to start the loop
-    - and stop() to stop the loop
-    - arp packets are sent every interval \n
-    """
+
+class BerkleyPacketFilter():
     @classmethod
     def get_max_bpf(cls) -> int:
         output: str = subprocess.run(["sysctl", "debug.bpf_maxdevices"], capture_output=True).stdout
@@ -156,8 +151,11 @@ class ArpLoop(threading.Thread):
     
     @classmethod
     def open_bpf(cls) -> tuple[int, int]:
+        """
+        returns fd, bpf_index
+        """
         fd: int | None = None
-        for i in range(0,ArpLoop.get_max_bpf()+1):
+        for i in range(0, BerkleyPacketFilter.get_max_bpf()+1):
             bpf_num: int = i
             try:
                 fd: int = os.open(f"/dev/bpf{i}", os.O_RDWR)
@@ -171,19 +169,46 @@ class ArpLoop(threading.Thread):
             raise RuntimeError("No BPFs available")
         return fd, bpf_num
     
+    def __init__(self) -> None:
+        self.bpf = BerkleyPacketFilter.open_bpf()
+        self.fd = self.bpf[0]
+        self.index = self.bpf[1]
 
-    def __init__(self, deviceIp: str, deviceMac: str, sendToIp: str, sendToMac: str, interval: float = 0.5) -> None:
+    def __del__(self) -> None:
+        os.close(self.fd)
+        
+    
+class ArpLoop(threading.Thread):
+    """Creates an object that constantly sends arp packets\n
+    - run() to start the loop
+    - and stop() to stop the loop
+    - arp packets are sent every interval \n
+    """
+    def __init__(
+        self,
+        bpf_device: BerkleyPacketFilter | int, 
+        
+        deviceIp: str,
+        deviceMac: str,
+        sendToIp: str,
+        sendToMac: str,
+
+        interval: float = 0.5
+    ) -> None:
         super().__init__(daemon=True)
         self._exit = threading.Event()
-        self.deviceIp = deviceIp
-        self.deviceMac = deviceMac
-        self.sendToIp = sendToIp
-        self.sendToMac = sendToMac
-        self._interval = interval
+        self.deviceIp: str = deviceIp
+        self.deviceMac: str = deviceMac
+        self.sendToIp: str = sendToIp
+        self.sendToMac: str = sendToMac
+        self._interval: float = interval
 
-        self.bpf = self.open_bpf()
-        self.bpf_fd = self.bpf[0]
-        self.bpf_index = self.bpf[1]
+        if isinstance(bpf_device, BerkleyPacketFilter):
+            self.bpf: BerkleyPacketFilter = bpf_device
+            self.bpf_fd: int = self.bpf.fd
+            self.bpf_index: int = self.bpf.index
+        else:
+            self.bpf_fd: int = bpf_device
 
         self.ifr: bpf.ifreq = bpf.ifreq()
         self.ifr.ifr_name = b"en0"
@@ -194,10 +219,6 @@ class ArpLoop(threading.Thread):
 
         buf_len: ctypes.c_int = ctypes.c_uint(1)
         fcntl.ioctl(self.bpf_fd, bpf.BIOCGBLEN, buf_len, True)
-
-    def __del__(self) -> None:
-        os.close(self.bpf_fd)
-
 
     def send_arp_request(
         self,
