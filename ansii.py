@@ -8,6 +8,8 @@ class ANSI(Enum):
     REVERSE="\033[7m";
     STRIKETHROUGH="\033[9m";
     #colours
+    WHITE = "\033[37m"
+    BRIGHT_WHITE = "\033[97m"
     BLACK = "\033[30m"
     MAGENTA = "\033[35m"
     BLUE =  "\033[34m"

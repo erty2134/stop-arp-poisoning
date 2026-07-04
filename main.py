@@ -3,6 +3,7 @@ import os
 from datetime import datetime
 import cli
 import net
+from bpf.packets import get_ipv4_address
 from ansii import ANSI
 
 def help() -> str:
@@ -74,19 +75,19 @@ def main(argc: int, argv: list[str]) -> int:
     @commands.create_command("poisoninterval")
     def poison_interval(statement, command, value):
         if statement == "set":
-            commands.global_data["poisoninterval"] = int(value)
+            commands.global_data["poisoninterval"] = float(value)
         if statement == "get":
             display.print(commands.global_data["poisoninterval"])
     @commands.create_command("cleaninterval")
     def clean_interval(statement, command, value):
         if statement == "set":
-            commands.global_data["cleaninterval"] = int(value)
+            commands.global_data["cleaninterval"] = float(value)
         if statement == "get":
             display.print(commands.global_data["cleaninterval"])
     @commands.create_command("isolateinterval")
     def clean_interval(statement, command, value):
         if statement == "set":
-            commands.global_data["reconnection_interval"] = int(value)
+            commands.global_data["reconnection_interval"] = float(value)
         if statement == "get":
             display.print(commands.global_data["reconnection_interval"])
     @commands.create_command("baninterval")
@@ -134,7 +135,15 @@ def main(argc: int, argv: list[str]) -> int:
     @commands.create_statement("broadcast")
     def broadcast_command() -> None:
         display.print("broadcast start, please wait...")
-        commands.global_data["broadcast"] = net.broadcast_ping()
+        net.broadcast_ping()
+        arp_table = net.get_arp_cache()
+        ips: list[str] = []
+        macs: list[str] = []
+        for entry in arp_table:
+            ips.append(entry[0])
+            macs.append(entry[1])
+        commands.global_data["broadcast"] = (ips, macs)
+        display.print(commands.global_data["broadcast"])
         display.print("broadcast ended")
 
     @commands.create_command("threads")
@@ -229,6 +238,12 @@ def main(argc: int, argv: list[str]) -> int:
                 if ips == net.get_ip():
                     print(f"'{ips}' continue ips == device_ip")
                     continue
+                if ips.split(".")[2] != net.get_ip().split(".")[2]: # get the third octet from each ip to compare subnets 
+                    print(f"'{ips}' continue ips != net.get_ip(), ips is on wrong subnet")
+                    continue
+                if ips.split(".")[3] == "0":
+                    print(f"'{ips}' continue ips 4th octet == 0, eg ip == 192.168.67.0")
+                    continue
                 if ips == net.get_ip_from_mac(attacker_mac, (ip_cache, mac_cache)):
                     print(f"'{ips}' continue ips == true_attacker_ip")
                     continue
@@ -239,10 +254,20 @@ def main(argc: int, argv: list[str]) -> int:
         # send -counter- poison to the attacker
         # create loops
         display.print("Initializing counter poison threads")
+        bpf_counter_poison = net.BerkleyPacketFilter()
         for ips in target_client_ips:
             unused_mac = net.get_unasigned_mac(mac_list=mac_cache+unused_mac_all)
             unused_mac_all.append(unused_mac)
-            commands.global_data["counter_poison_loops"].append(net.ArpLoop(ips, unused_mac, attacker_ip, attacker_mac, interval=counter_poison_interval))
+            arploop: net.ArpLoop = net.ArpLoop(
+                bpf_counter_poison,
+                ips,
+                unused_mac,
+                attacker_ip,
+                attacker_mac,
+                interval=counter_poison_interval
+            )
+            commands.global_data["counter_poison_loops"].append(arploop)
+            del arploop
             display.print(f"poison: {ips} bound to {unused_mac}, real {net.get_mac_from_ip(ips, ips_and_macs=(ip_cache, mac_cache))} > for {attacker_ip}, {attacker_mac}")
         # start the loops
         display.print("starting counter poison...")
@@ -253,11 +278,22 @@ def main(argc: int, argv: list[str]) -> int:
         # clean arp caches of victims
         # create loops
         display.print("Initializing arp cache cleaning threads")
+        bpf_clean_cache: net.BerkleyPacketFilter = net.BerkleyPacketFilter()
         commands.global_data["clean_arp_caches_loops"] = []
         for ips in target_client_ips:
             unused_mac = net.get_unasigned_mac(mac_list=mac_cache+unused_mac_all)
-            unused_mac_all.append(unused_mac)
-            commands.global_data["clean_arp_caches_loops"].append(net.ArpLoop(router_ip, router_mac, ips, net.get_mac_from_ip(ips, ips_and_macs=(ip_cache, mac_cache)), interval=arp_clean_interval))
+            # appends all unused macs to a list so it doesnt regenerate an unused mac when calling get_unasigned_mac()
+            unused_mac_all.append(unused_mac) 
+            arploop: net.ArpLoop = net.ArpLoop(
+                bpf_clean_cache,
+                router_ip,
+                router_mac,
+                ips,
+                net.get_mac_from_ip(ips, ips_and_macs=(ip_cache, mac_cache)),
+                interval=arp_clean_interval
+            )
+            commands.global_data["clean_arp_caches_loops"].append(arploop)
+            del arploop
         # start loops
         display.print("starting arp cache cleaning")
         for arp_loops in commands.global_data["clean_arp_caches_loops"]:
@@ -266,15 +302,23 @@ def main(argc: int, argv: list[str]) -> int:
         # prevent reconnection
         # create loops
         display.print("Initializing counter reconnect loops")
+        bpf_prevent_reconnect: net.BerkleyPacketFilter = net.BerkleyPacketFilter()
         for ips in target_client_ips:
             unused_mac = net.get_unasigned_mac(mac_list=mac_cache+unused_mac_all)
             unused_mac_all.append(unused_mac)
             display.print(f"poison: {attacker_ip} bound to {unused_mac}, real {attacker_mac} > for {ips}, {net.get_mac_from_ip(ips,ips_and_macs=(ip_cache, mac_cache))}")
-            commands.global_data["counter_reconnect_loops"].append(net.ArpLoop(attacker_ip, unused_mac, ips, net.get_mac_from_ip(ips, ips_and_macs=(ip_cache, mac_cache)), interval=prevent_reconnection_interval))
+            arploop: net.ArpLoop = net.ArpLoop(
+                bpf_prevent_reconnect,
+                attacker_ip,
+                unused_mac,
+                ips,
+                net.get_mac_from_ip(ips, ips_and_macs=(ip_cache, mac_cache)),
+                interval=prevent_reconnection_interval
+            )
+            commands.global_data["counter_reconnect_loops"].append(arploop)
         # start loops
         for arp_loops in commands.global_data["counter_reconnect_loops"]:
             arp_loops.start()
-
 
         try:
             display.print(f"arp_ips {ip_cache}")
@@ -294,7 +338,9 @@ def main(argc: int, argv: list[str]) -> int:
         attacker_ip = commands.global_data["targetip"]
         attacker_mac = commands.global_data["targetmac"]
         
+        bpf_ban_attacker: net.BerkleyPacketFilter = net.BerkleyPacketFilter()
         ban_poison_attacker: net.ArpLoop = net.ArpLoop(
+            bpf_ban_attacker,
             deviceIp=router_ip, 
             deviceMac=unused_mac, 
             sendToIp=attacker_ip, 
@@ -302,6 +348,7 @@ def main(argc: int, argv: list[str]) -> int:
             interval=commands.global_data["baninterval"]
             )
         ban_poison_router: net.ArpLoop = net.ArpLoop(
+            bpf_ban_attacker,
             deviceIp=attacker_ip,
             deviceMac=unused_mac,
             sendToIp=router_ip,
@@ -325,18 +372,19 @@ def main(argc: int, argv: list[str]) -> int:
         display.print(help())
     
     # idk how to make an alias :(
+    def quit_alias() -> None:
+        display.print("exiting...")
+        sys.exit(0)
     @commands.create_statement("quit")
     def exit_statement():
-        display.print("exiting...")
-        sys.exit(0)
+        quit_alias()
     @commands.create_statement("exit")
     def exit_statement():
-        display.print("exiting...")
-        sys.exit(0)
+        quit_alias()
 
     # setup cli
     COLOUR = ANSI.YELLOWBG.value + ANSI.BLACK.value
-    display.prefix = f"{COLOUR}{datetime.now().strftime("%H:%M:%S")} 〉{ANSI.BOLD.value}{net.get_ip()}{ANSI.END.value}{ANSI.YELLOW.value} » {ANSI.END.value}"
+    display.prefix = f"{ANSI.YELLOWBG.value}{datetime.now().strftime("%H:%M:%S")}{COLOUR} 〉{ANSI.BOLD.value}{net.get_ip()}{ANSI.END.value}{ANSI.YELLOW.value} » {ANSI.END.value}"
     display.suffix = f"{ANSI.END.value}\n"
     display.prePrint = f"{ANSI.DIM.value}"
     display.preInput = f"{ANSI.BOLD.value}"
@@ -345,11 +393,12 @@ def main(argc: int, argv: list[str]) -> int:
     initialize_global_data()
     while True:
         # v sets the prefix again to update time
-        display.prefix = f"{COLOUR}{datetime.now().strftime("%H:%M:%S")} 〉{ANSI.BOLD.value}{net.get_ip()}{ANSI.END.value}{ANSI.YELLOW.value} » {ANSI.END.value}"
+        display.prefix = f"{ANSI.YELLOWBG.value}{datetime.now().strftime("%H:%M:%S")}{COLOUR} 〉{ANSI.BOLD.value}{net.get_ip()}{ANSI.END.value}{ANSI.YELLOW.value} » {ANSI.END.value}"
         try:
             user_input = display.input()
         except KeyboardInterrupt: # graceful keyboard interupt
-            print("\n") # adds extra line because ^C doesnt create new line like [ENTER]
+            print("\n") # adds extra line because ^C doesnt create new line
+            continue
             display.print("quitting...")
             return 1
         error: str = commands.update(user_input)
@@ -357,4 +406,4 @@ def main(argc: int, argv: list[str]) -> int:
             display.print(error)
 
 if __name__ == "__main__": 
-    sys.exit(main(len(sys.argv), sys.argv))
+    raise SystemExit(main(len(sys.argv), sys.argv))

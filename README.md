@@ -1,14 +1,12 @@
 # stop-arp-poisoning
-basic scapy-based tool that removes arp poisoning based mitms by arp poisoning the attacker and cleaning arp caches of effected devices through forged (technically poisoned) arp packets
-
-doesnt work on fullduplex or internal yet (bettercap)
+macos only Berkley Packet Filter tool that removes arp poisoning by sending multiple different types of spoofed arp packets to prevent arp poisoning from mitm tools like bettercap. This has been tested on Bettercap version v2.41.5 and with macos version 26.2 and only uses dependecies that are builtin to macos: route, arp, ifconfig, grep, ping.
+I have tested against bettercap with halfduplex, fullduplex and internal, and got 0% packetloss.
 
 how to use:
-create a python venv and download the requirements
-python 3.14
+python 3.14.3 anything above 3 should work
 
 ⚠️ before any mitms note down the routers mac address
-
+⚠️ during mitm before and during running the script use a static arp entry to defend your own computer from an mitm
 
 
 ## Setup
@@ -18,7 +16,7 @@ run this terminal command
 ```zsh
 arp -a
 ```
-note the attackers mac address, the mac will be the one associated with the routers ip
+note the attackers mac address, the mac will be the one associated with the routers ip during an active mitm else it would just return the routers mac address
 
 
 #### 2. escape the mitm with static arp entry
@@ -54,7 +52,13 @@ set targetmac 0e:d9:6c:6e:44:62
 
 run this command but with the attackers ip from step 3
 ```
-set targetip 192.168.54.42
+set targetip 192.168.54.67
+```
+
+#### 6. discover all devices on network
+this will unicast icmp ping every device on the subnet
+```
+broadcast
 ```
 
 
@@ -64,9 +68,7 @@ this will run defense on whole subnet
 start threads
 ```
 
-it will take ~34.2 seconds to fininish broadcasting the network because it sends 2 rounds of broadcast arp packets to the whole network to wake up all devices on the network then sends another 2 rounds of broadcast arp packets to get the ip and mac of all devices.
-
-after that the rest of the steps should be instant.
+it will take ~5 seconds to fininish broadcasting the subnet because of the timeout time for the devices that dont exist on your subnet
 
 ## bugs
-if anything doesnt work create an issue on this repo on github
+if anything doesnt work create an issue on this repo on github.
