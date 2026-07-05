@@ -62,7 +62,7 @@ broadcast
 ```
 
 
-#### 6. start threads
+#### 7. start threads
 this will run defense on whole subnet
 ```
 start threads
