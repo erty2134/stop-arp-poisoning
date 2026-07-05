@@ -123,12 +123,9 @@ def main(argc: int, argv: list[str]) -> int:
         elif statement == "remove":
             commands.global_data["clientsip"].remove(value)
         elif statement == "get":
-            try:
-                display.print(f"clientips: '{commands.global_data["clientsip"]}'")
-            except KeyError:
-                display.print(f"clientsip is empty")
-            else:
-                raise
+            if len(clients_ip) == 0:
+                display.print("clients ip empty")
+            display.print(f"clientips: '{commands.global_data["clientsip"]}'")
         else:
             display.print(f"Statement not valid '{statement}'")
 
