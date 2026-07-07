@@ -46,7 +46,7 @@ def ascii_to_ethernet(ascii_mac: str) -> bytes:
     try:
         ethernet_address: bytes = bytes.fromhex(clean)
     except Exception as e:
-        print(f"errror, ascii_mac is '{ascii_mac}'\n and result was {':'.join(split)}")
+        sys.stderr.write(f"errror, ascii_mac is '{ascii_mac}'\n and result was {':'.join(split)}\n")
         raise
     return ethernet_address
 
@@ -86,7 +86,6 @@ class Ethernet_Frame:
         self.dst: bytes = ascii_to_ethernet(dst)
         self.src: bytes = ascii_to_ethernet(src)
         self.ether_type: bytes = ether_type.to_bytes(2, "big")
-
         self.bytes_: bytes = struct.pack(
             f">6s6s2s{len(self.payload)}s",
             self.dst,
@@ -138,13 +137,14 @@ class Arp_Packet:
         self,
         tha: str,
         tpa: str,
+        sha: str,# = get_mac_address("en0"),
+        spa: str, # = get_ipv4_address()
         htype: int = 1,
         ptype: int = 0x0800,
         hlen: int = 6,
         plen: int = 4,
-        oper: int = 2,
-        sha: str = get_mac_address("en0"),
-        spa: str = get_ipv4_address()
+        oper: int = 2
+        
     ) -> None:
 
         self.arp_payload = Arp_Payload(
