@@ -85,7 +85,7 @@ class Ethernet_Frame:
         
         self.dst: bytes = ascii_to_ethernet(dst)
         self.src: bytes = ascii_to_ethernet(src)
-        self.ether_type: bytes = ether_type.to_bytes(2, "big")
+        self.ether_type: bytes = ether_type.to_bytes(2, "big")        
         self.bytes_: bytes = struct.pack(
             f">6s6s2s{len(self.payload)}s",
             self.dst,
@@ -131,7 +131,7 @@ class Arp_Payload:
             self.tpa
         )
 
-class Arp_Packet:
+class Arp_Packet: # fix the naming no underscore should be here
     """creates an arp packet by encapsulating an arp packet (arp_payload object) into an ethernet frame"""
     def __init__(
         self,
