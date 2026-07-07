@@ -16,6 +16,7 @@ import os
 import errno
 import fcntl
 import ctypes
+import struct
 from bpf import bpf, packets
 
 def get_router_ip() -> str:
@@ -220,6 +221,11 @@ class ArpLoop(threading.Thread):
         buf_len: ctypes.c_int = ctypes.c_uint(1)
         fcntl.ioctl(self.bpf_fd, bpf.BIOCGBLEN, buf_len, True)
 
+        header_complete = ctypes.c_uint(1)
+        fcntl.ioctl(self.bpf_fd, bpf.BIOCSHDRCMPLT, header_complete, True)
+
+
+
     def send_arp_request(
         self,
         target_mac=None, 
@@ -246,16 +252,47 @@ class ArpLoop(threading.Thread):
     def foo(self) -> None:
         return ("bar")
     
-def main():
+def main() -> None:
+    bpf_fd = BerkleyPacketFilter.open_bpf()[0] # 0 is the fd
+
+    ifr: bpf.ifreq = bpf.ifreq()
+    ifr.ifr_name = b"en0"
+    fcntl.ioctl(bpf_fd, bpf.BIOCSETIF, ifr, True)
+    #buf_immediate: ctypes.c_int = ctypes.c_uint()
+    #fcntl.ioctl(bpf_fd, bpf.BIOCIMMEDIATE, buf_immediate, True)
+    #buf_len: ctypes.c_int = ctypes.c_uint(1)
+    #fcntl.ioctl(bpf_fd, bpf.BIOCGBLEN, buf_len, True)
+
+    header_complete = ctypes.c_uint(1)
+    fcntl.ioctl(bpf_fd, bpf.BIOCSHDRCMPLT, header_complete, True)
+
+
+    pay = "hello".encode("utf-8")
+    frame: bytes = struct.pack(
+        f">6s6s2s{len(pay)}s",
+        packets.ascii_to_ethernet("b6:ac:31:43:11:ee"), # dst
+        packets.ascii_to_ethernet("11:22:33:44:55:66"), # src
+        0x0801.to_bytes(2, "big"),
+        pay
+    )
+
+    try:
+        #my_ethernet = packets.Ethernet_Frame(b"Hello!", "22:22:22:33:33:33", "1a:64:b6:c3:b:13", ether_type=0x0801)
+        os.write(bpf_fd, frame)
+    except:
+        raise
+    finally:
+        os.close(bpf_fd)
+    return None
     my_loop: ArpLoop = ArpLoop(
-        deviceIp= packets.get_ipv4_address(),
-        deviceMac=packets.get_mac_address(),
+        bpf_device=BerkleyPacketFilter(),
+        deviceIp= "192.168.54.67",
+        deviceMac="11:22:33:44:55:66",
         sendToIp="192.168.54.42",
         sendToMac="b8:27:eb:74:f2:6c",
         interval=1
     )
     my_loop.run()
-    input()
-    my_loop.stop()
 
-if __name__ == "__main__": main()
+if __name__ == "__main__": 
+    main()
